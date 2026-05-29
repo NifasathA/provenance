@@ -1,0 +1,18 @@
+name = "provenance-worker"
+main = "src/index.ts"
+compatibility_date = "2025-05-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[r2_buckets]]
+binding = "DATASET"
+bucket_name = "proc-bucket"
+remote = true
+
+[vars]
+HONCHO_APP_ID = "provenance"
+X402_NETWORK = "base-sepolia"
+X402_FACILITATOR = "https://x402.org/facilitator"
+
+# Secrets (set via `wrangler secret put`):
+#   HONCHO_API_KEY
+#   X402_PAYMENT_RECIPIENT   (0x... wallet that receives USDC)

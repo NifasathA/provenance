@@ -1,0 +1,70 @@
+"""
+verify_phase3.py — Phase 3 gate
+
+Tests the deployed Cloudflare Worker endpoints.
+
+Run: python verify_phase3.py --url https://your-worker.workers.dev
+"""
+
+import sys, json, argparse, urllib.request, urllib.error
+
+def get(url):
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url)) as r:
+            return r.status, r.read().decode()
+    except urllib.error.HTTPError as e:
+        return e.code, e.read().decode()
+    except Exception as ex:
+        print(f"  ERROR: {ex}"); return None, None
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--url", required=True)
+    base = parser.parse_args().url.rstrip("/")
+    print(f"Testing Worker at: {base}")
+
+    # /catalog
+    print("\n--- GET /catalog ---")
+    status, body = get(f"{base}/catalog")
+    if status != 200: print(f"FAIL: {status}\n{body[:300]}"); sys.exit(1)
+    catalog = json.loads(body)
+    for k in ["updated_at","total_trajectories","chunks"]:
+        if k not in catalog: print(f"FAIL: catalog missing {k}"); sys.exit(1)
+    chunks = catalog["chunks"]
+    if not chunks: print("FAIL: no chunks"); sys.exit(1)
+    print(f"OK   {len(chunks)} chunks, {catalog['total_trajectories']} trajectories")
+
+    # x402 gate
+    print("\n--- GET /chunk/... without payment (expect 402) ---")
+    c = chunks[0]
+    url = f"{base}/chunk/{c['buyer_persona']}/{c['merchant_persona']}/{c['id'].split('_')[-1]}"
+    status, body = get(url)
+    if status != 402: print(f"FAIL: expected 402, got {status}"); sys.exit(1)
+    parsed = json.loads(body)
+    if "x402Version" not in parsed or not parsed.get("accepts"):
+        print(f"FAIL: invalid 402 body"); sys.exit(1)
+    accept = parsed["accepts"][0]
+    for k in ["scheme","network","maxAmountRequired","resource","payTo"]:
+        if k not in accept: print(f"FAIL: accepts[0] missing {k}"); sys.exit(1)
+    print(f"OK   402 valid — network: {accept['network']}, payTo: {accept['payTo'][:20]}...")
+
+    # Free sample
+    print("\n--- GET /sample/001 (expect 200) ---")
+    status, body = get(f"{base}/sample/001")
+    if status != 200: print(f"FAIL: {status} — upload samples/001.json to R2 first"); sys.exit(1)
+    print("OK   Free sample accessible without payment")
+
+    # Public vectors
+    print("\n--- GET /vectors/vector_hashes.json (expect 200) ---")
+    status, body = get(f"{base}/vectors/vector_hashes.json")
+    if status != 200: print(f"FAIL: {status}"); sys.exit(1)
+    hashes = json.loads(body)
+    if len(hashes) < 7: print(f"FAIL: only {len(hashes)} hashes, expected 7"); sys.exit(1)
+    if any(not v.startswith("sha256:") for v in hashes.values()):
+        print("FAIL: malformed hashes"); sys.exit(1)
+    print(f"OK   {len(hashes)} valid hashes accessible publicly")
+
+    print("\nPASS: Phase 3 complete.")
+
+if __name__ == "__main__":
+    main()

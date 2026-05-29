@@ -1,0 +1,98 @@
+import { Hono } from "hono";
+import { exact } from "x402/schemes";
+
+import { findChunk, loadCatalog, readJson } from "./catalog";
+import { logPurchase } from "./honcho";
+import { paymentMiddlewareFor } from "./x402";
+
+type Env = {
+  DATASET: R2Bucket;
+  HONCHO_APP_ID: string;
+  HONCHO_API_KEY?: string;
+  X402_NETWORK: string;
+  X402_FACILITATOR: string;
+  X402_PAYMENT_RECIPIENT: string;
+};
+
+const app = new Hono<{ Bindings: Env }>();
+
+app.get("/", (c) =>
+  c.json({
+    name: "Provenance",
+    endpoints: {
+      catalog: "/catalog",
+      chunk: "/chunk/{buyer}/{merchant}/{id}  (x402-gated)",
+      sample: "/sample/{id}",
+      vectors: "/vectors/{filename}",
+    },
+  }),
+);
+
+// Free: full catalog.
+app.get("/catalog", async (c) => {
+  const catalog = await loadCatalog(c.env.DATASET);
+  return c.json(catalog);
+});
+
+// Free: a single sample trajectory.
+app.get("/sample/:id", async (c) => {
+  const id = c.req.param("id");
+  const data = await readJson(c.env.DATASET, `samples/${id}.json`);
+  if (!data) return c.notFound();
+  return c.json(data);
+});
+
+// Free: vector hash registry (and any other public vectors/ asset).
+app.get("/vectors/:filename", async (c) => {
+  const filename = c.req.param("filename");
+  const data = await readJson(c.env.DATASET, `vectors/${filename}`);
+  if (!data) return c.notFound();
+  return c.json(data);
+});
+
+// Paid: chunk download. paymentMiddlewareFor returns the cached x402-hono
+// middleware whose routes mirror catalog.json prices.
+app.use("/chunk/:buyer/:merchant/:id", async (c, next) => {
+  const middleware = await paymentMiddlewareFor(c);
+  return middleware(c, next);
+});
+
+app.get("/chunk/:buyer/:merchant/:id", async (c) => {
+  const { buyer, merchant, id } = c.req.param();
+  const catalog = await loadCatalog(c.env.DATASET);
+  const chunk = findChunk(catalog, buyer, merchant, id);
+  if (!chunk) return c.notFound();
+
+  const obj = await c.env.DATASET.get(chunk.key);
+  if (!obj) return c.notFound();
+
+  // x402-hono's middleware accepted the request, so X-PAYMENT is present and
+  // decodable. Pull the EIP-3009 signer (`authorization.from`) — that's the
+  // wallet that actually paid, and the only stable id we can group by.
+  let payer = "unknown";
+  try {
+    const decoded = exact.evm.decodePayment(c.req.header("X-PAYMENT") ?? "");
+    if (decoded.payload && "authorization" in decoded.payload) {
+      payer = decoded.payload.authorization.from;
+    }
+  } catch {
+    // Middleware would have rejected an undecodable payment, so this is
+    // defensive only — log under "unknown" rather than fail the download.
+  }
+
+  c.executionCtx.waitUntil(
+    logPurchase(c.env, {
+      payer,
+      chunk_id: chunk.id,
+      pairing: chunk.pairing,
+      price_usd: chunk.price_usd,
+      ts: new Date().toISOString(),
+    }),
+  );
+
+  return new Response(obj.body, {
+    headers: { "content-type": "application/json" },
+  });
+});
+
+export default app;

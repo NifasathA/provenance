@@ -1,0 +1,8 @@
+pipeline/.env
+pipeline/vectors/
+pipeline/trajectories_raw.json
+pipeline/upload_local/
+*.pt
+__pycache__/
+.env
+node_modules/

@@ -7,3 +7,7 @@ __pycache__/
 .env
 node_modules/
 .venv/
+handoff-*.md
+.claude/
+CLAUDE.md
+.claude.json

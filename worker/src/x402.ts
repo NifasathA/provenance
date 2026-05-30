@@ -8,9 +8,10 @@
 import type { Context, MiddlewareHandler } from "hono";
 import { paymentMiddleware } from "x402-hono";
 import { isAddress, type Address } from "viem";
-import type { RoutesConfig } from "x402/types";
+import { SupportedEVMNetworks, type Network, type RoutesConfig } from "x402/types";
 
-import type { Catalog } from "./catalog";
+import { loadCatalog, type Catalog } from "./catalog";
+import type { Env } from "./env";
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
@@ -26,26 +27,33 @@ function assertValidRecipient(recipient: string | undefined): asserts recipient 
   }
 }
 
-type Env = {
-  DATASET: R2Bucket;
-  HONCHO_APP_ID: string;
-  HONCHO_API_KEY?: string;
-  X402_NETWORK: string;
-  X402_FACILITATOR: string;
-  X402_PAYMENT_RECIPIENT: string;
-};
+function assertSupportedNetwork(network: string): asserts network is Network {
+  if (!SupportedEVMNetworks.some((n) => n === network)) {
+    throw new Error(
+      `X402_NETWORK "${network}" is not a supported EVM network. Expected one of: ${SupportedEVMNetworks.join(", ")}.`,
+    );
+  }
+}
 
+// Per-isolate cache of the built middleware: the catalog is read from R2 and the
+// middleware constructed once, then reused for up to TTL_MS. Consequence — the
+// gate's routes/prices can lag a catalog change by up to TTL_MS. The chunk
+// handler (index.ts) loads the catalog fresh each request, so within that window
+// the two can diverge: a just-added chunk may serve free until the gate
+// refreshes, a just-removed chunk gets gated then 404s, a repriced chunk charges
+// the old price. Acceptable because the catalog only changes on a manual
+// re-upload; wait out TTL_MS after uploading before treating new prices as live.
 let cachedMiddleware: MiddlewareHandler | null = null;
 let cachedAt = 0;
 const TTL_MS = 60_000;
 
-function buildRoutes(catalog: Catalog, network: string): RoutesConfig {
+function buildRoutes(catalog: Catalog, network: Network): RoutesConfig {
   const routes: RoutesConfig = {};
   for (const chunk of catalog.chunks) {
     const path = `/chunk/${chunk.buyer_persona}/${chunk.merchant_persona}/${chunk.id}`;
     routes[path] = {
       price: `$${chunk.price_usd.toFixed(2)}`,
-      network: network as never,
+      network,
       config: {
         description: `${chunk.pairing} (${chunk.count} trajectories)`,
       },
@@ -60,11 +68,9 @@ export async function paymentMiddlewareFor(c: Context<{ Bindings: Env }>): Promi
 
   const env = c.env;
   assertValidRecipient(env.X402_PAYMENT_RECIPIENT);
+  assertSupportedNetwork(env.X402_NETWORK);
 
-  const obj = await env.DATASET.get("catalog.json");
-  if (!obj) throw new Error("catalog.json not found in R2");
-  const catalog = (await obj.json()) as Catalog;
-
+  const catalog = await loadCatalog(env.DATASET);
   const routes = buildRoutes(catalog, env.X402_NETWORK);
   cachedMiddleware = paymentMiddleware(
     env.X402_PAYMENT_RECIPIENT,

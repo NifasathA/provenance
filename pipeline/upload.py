@@ -51,12 +51,14 @@ BUNDLE_PRICE_USD = 0.40
 SAMPLE_PAIRING = "paranoid_security_auditor__social_engineer"
 
 
-def _price_chunk(adv_ratio: float, mixed_ratio: float, is_calibration: bool) -> float:
+def _price_chunk(adv_ratio: float, mixed_ratio: float) -> float:
     if adv_ratio >= 0.60:
         return 0.10
     if mixed_ratio >= 0.50:
         return 0.08
-    return 0.05  # base and calibration both $0.05
+    # Base / fall-through. Calibration pairings land here at $0.05 by design
+    # (adv_ratio 0, low mixed_ratio) — no separate branch needed.
+    return 0.05
 
 
 def _build_chunks(trajectories: list[dict]) -> list[dict]:
@@ -75,9 +77,8 @@ def _build_chunks(trajectories: list[dict]) -> list[dict]:
         mixed = sum(1 for t in group if t.get("modality") == "mixed")
         adv_ratio = adv / count
         mixed_ratio = mixed / count
-        is_cal = cal == count and cal > 0
         chunk_id = f"{idx:03d}"
-        price = _price_chunk(adv_ratio, mixed_ratio, is_cal)
+        price = _price_chunk(adv_ratio, mixed_ratio)
         chunks.append({
             "id": chunk_id,
             "pairing": pairing,
@@ -264,7 +265,6 @@ def _upload_to_r2(chunks, catalog, sample, hashes, skip_public_check: bool) -> N
         client.put_object(
             Bucket=bucket, Key=c["key"], Body=body,
             ContentType="application/json",
-            Metadata={"count": str(c["count"]), "price_usd": str(c["price_usd"])},
         )
         print(f"  uploaded {c['key']:75s} ({len(body):>7,} bytes, ${c['price_usd']:.2f})")
 

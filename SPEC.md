@@ -116,7 +116,7 @@ Each named merchant (e.g. "DataVault Pro") should behave consistently across all
 
 ## Dataset Pricing
 
-Chunks contain 50 trajectories each. Price per chunk:
+One chunk per pairing (12 chunks total), ~13 trajectories each. Price per chunk:
 
 - Base: $0.05
 - If adversarial ratio ≥ 0.60: $0.10
@@ -156,13 +156,11 @@ provenance/
 │   ├── style.css
 │   └── app.js
 ├── vectors/                  # public vector files for hash verification
-│   └── README.md
 ├── verify_phase0.py
 ├── verify_phase1.py
 ├── verify_phase2.py
 ├── verify_phase3.py
-├── SPEC.md
-└── README.md
+└── SPEC.md
 ```
 
 ---
@@ -229,7 +227,7 @@ HF_TOKEN=
 R2_ACCOUNT_ID=
 R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
-R2_BUCKET_NAME=provenance-trajectories
+R2_BUCKET_NAME=proc-bucket
 R2_ENDPOINT=https://{account_id}.r2.cloudflarestorage.com
 ```
 
@@ -243,6 +241,8 @@ X402_PAYMENT_RECIPIENT
 ```
 HONCHO_APP_ID = "provenance"
 ```
+
+**Deploying the Worker.** `proc-bucket` and the Worker live in Cloudflare account `1ebf3cd9475ef1c13e035d606710ca87`, which is **not** the account `wrangler login` defaults to. `wrangler.toml` pins `account_id` to the correct account so `wrangler deploy`/`wrangler dev` target it automatically — but the `CLOUDFLARE_API_TOKEN` you authenticate with must have Workers + R2 access on that account. Without it, the R2 binding silently fails to resolve and the Worker can't read the catalog or chunks.
 
 ---
 

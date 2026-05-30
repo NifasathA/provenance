@@ -3,6 +3,12 @@ main = "src/index.ts"
 compatibility_date = "2025-05-01"
 compatibility_flags = ["nodejs_compat"]
 
+# proc-bucket (the R2 binding below) lives in this account, which is NOT the one
+# `wrangler login` defaults to. Pinning account_id makes `wrangler deploy`/`dev`
+# target the right account; otherwise the R2 binding silently fails to resolve.
+# The CLOUDFLARE_API_TOKEN you authenticate with must have access to this account.
+account_id = "1ebf3cd9475ef1c13e035d606710ca87"
+
 [[r2_buckets]]
 binding = "DATASET"
 bucket_name = "proc-bucket"
@@ -12,7 +18,9 @@ remote = true
 HONCHO_APP_ID = "provenance"
 X402_NETWORK = "base-sepolia"
 X402_FACILITATOR = "https://x402.org/facilitator"
+# Wallet that receives USDC. Public info — safe to commit. Change here + redeploy
+# to rotate the recipient; the assertValidRecipient guard in x402.ts validates it.
+X402_PAYMENT_RECIPIENT = "0xefb0cd941b605e9d3b3f1f905a2d4bbb7d16415a"
 
 # Secrets (set via `wrangler secret put`):
-#   HONCHO_API_KEY
-#   X402_PAYMENT_RECIPIENT   (0x... wallet that receives USDC)
+#   HONCHO_API_KEY   (optional — honcho.ts no-ops cleanly when unset)

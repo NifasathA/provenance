@@ -6,3 +6,4 @@ pipeline/upload_local/
 __pycache__/
 .env
 node_modules/
+.venv/

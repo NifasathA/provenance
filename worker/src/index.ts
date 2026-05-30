@@ -2,17 +2,9 @@ import { Hono } from "hono";
 import { exact } from "x402/schemes";
 
 import { findChunk, loadCatalog, readJson } from "./catalog";
+import type { Env } from "./env";
 import { logPurchase } from "./honcho";
 import { paymentMiddlewareFor } from "./x402";
-
-type Env = {
-  DATASET: R2Bucket;
-  HONCHO_APP_ID: string;
-  HONCHO_API_KEY?: string;
-  X402_NETWORK: string;
-  X402_FACILITATOR: string;
-  X402_PAYMENT_RECIPIENT: string;
-};
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -64,7 +56,19 @@ app.get("/chunk/:buyer/:merchant/:id", async (c) => {
   if (!chunk) return c.notFound();
 
   const obj = await c.env.DATASET.get(chunk.key);
-  if (!obj) return c.notFound();
+  if (!obj) {
+    // Catalogued chunk, missing R2 object = server-side drift, not a bad URL.
+    // 503 (status >=400) makes x402-hono skip settle(), so the buyer isn't charged.
+    console.error(`catalog/R2 drift: chunk ${chunk.id} references missing object ${chunk.key}`);
+    return c.json(
+      {
+        error:
+          "Chunk is catalogued but its data object is missing from storage. You were not charged; please retry shortly.",
+        chunk_id: chunk.id,
+      },
+      503,
+    );
+  }
 
   // x402-hono's middleware accepted the request, so X-PAYMENT is present and
   // decodable. Pull the EIP-3009 signer (`authorization.from`) — that's the

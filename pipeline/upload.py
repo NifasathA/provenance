@@ -100,7 +100,7 @@ def _build_chunks(trajectories: list[dict]) -> list[dict]:
 def _build_catalog(chunks: list[dict], updated_at: str) -> dict:
     return {
         "schema_version": 1,
-        "dataset_name": "provenance",
+        "dataset_name": "Adversarial Commerce Trajectories",
         "updated_at": updated_at,
         "total_trajectories": sum(c["count"] for c in chunks),
         "bundle_price_usd": BUNDLE_PRICE_USD,

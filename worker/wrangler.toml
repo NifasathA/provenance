@@ -14,6 +14,12 @@ binding = "DATASET"
 bucket_name = "proc-bucket"
 remote = true
 
+# Static explorer page (Phase 4). Cloudflare serves matching files (/, /style.css,
+# /app.js, ...) before the Worker runs; unmatched paths fall through to Hono
+# routes (/catalog, /chunk/..., /sample/..., /vectors/...).
+[assets]
+directory = "../explorer"
+
 [vars]
 HONCHO_APP_ID = "provenance"
 X402_NETWORK = "base-sepolia"

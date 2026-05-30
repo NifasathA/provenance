@@ -8,17 +8,8 @@ import { paymentMiddlewareFor } from "./x402";
 
 const app = new Hono<{ Bindings: Env }>();
 
-app.get("/", (c) =>
-  c.json({
-    name: "Provenance",
-    endpoints: {
-      catalog: "/catalog",
-      chunk: "/chunk/{buyer}/{merchant}/{id}  (x402-gated)",
-      sample: "/sample/{id}",
-      vectors: "/vectors/{filename}",
-    },
-  }),
-);
+// `/` is served by the explorer's index.html via wrangler [assets]; only
+// unmatched paths reach the Worker, so no Hono `/` route is needed here.
 
 // Free: full catalog.
 app.get("/catalog", async (c) => {

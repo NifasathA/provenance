@@ -145,9 +145,13 @@
         chunk JSON is served.
       </p>
       <aside class="callout">
-        <strong>No charge on failure.</strong> The x402 facilitator settles payment only on a
-        2xx response. If a chunk is missing, your signature is rejected, or the server errors,
-        no USDC moves — you are never charged for a chunk you didn't receive.
+        <strong>Settlement is gated on a 2xx response.</strong> The x402 facilitator only
+        attempts to settle when the server returns a 2xx status — which covers the common
+        failure modes (insufficient balance, malformed payment, missing chunk, server error).
+        Narrow edge case: a transient facilitator error during settlement (e.g. a nonce
+        collision on the shared relayer wallet) can result in an on-chain transfer landing
+        alongside a non-2xx HTTP response. For ground truth on whether you were charged,
+        check on-chain state, not just the HTTP status.
       </aside>
       <p class="example-label">Example 402 challenge:</p>
       <pre class="example">$ curl -s /chunk/paranoid_security_auditor/social_engineer/008

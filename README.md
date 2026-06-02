@@ -45,7 +45,7 @@ Sign an EIP-3009 `TransferWithAuthorization` for the requested amount, resubmit 
 - **Client libraries:** see the [x402 docs](https://x402.org) — official packages wrap the 402 → sign → resubmit handshake with a viem signer holding USDC
 - **Testnet USDC:** [faucet.circle.com](https://faucet.circle.com)
 
-**No charge on failure.** The x402 facilitator settles payment only on a `2xx` response. If a chunk is missing, your signature is rejected, or the server errors, no USDC moves — you are never charged for a chunk you didn't receive.
+**Settlement is gated on a `2xx` response.** The x402 facilitator only attempts to settle when the server returns a 2xx status — which covers the common failure modes (insufficient balance, malformed payment, missing chunk, server error). Narrow edge case verified empirically: a transient facilitator error during settlement (nonce collision on the public relayer wallet, etc.) can result in an on-chain transfer landing alongside a non-2xx HTTP response. For ground truth on whether you were charged, check on-chain state, not just the HTTP status.
 
 ---
 
@@ -215,7 +215,7 @@ python verify_phase3.py --url https://your-worker.workers.dev
 
 - **156 trajectories is small.** Proof-of-method, not a finished benchmark.
 - **base-sepolia is a testnet.** No mainnet USDC moves. Buyers need [testnet USDC from Circle's faucet](https://faucet.circle.com).
-- **No live paid-flow smoke test has been performed.** The verify gate proves the 402 challenge is correct and that malformed payments are rejected — but a successful end-to-end settle hasn't been empirically observed yet.
+- **Settlement edge case observed in smoke testing.** A live end-to-end paid-flow test succeeded (chunk delivered, USDC transferred), but also revealed that under transient facilitator errors during settlement (nonce collision on the shared x402.org relayer), an on-chain transfer can land alongside a non-2xx HTTP response. The strict "no charge on failure" property only holds for verify-stage failures; settle-stage failures need on-chain confirmation. Documented in the "Buy a chunk" section above.
 - **Honcho purchase logging is not wired.** The current `honcho.ts` targets the deprecated v1 API; the v3 rewrite (workspaces/peers/sessions/messages) is a deferred follow-up. Purchase events silently no-op.
 - **No automated unit tests.** The Phase 3 gate exercises the deployed Worker end-to-end; unit tests across the pipeline + Worker remain an open follow-up.
 

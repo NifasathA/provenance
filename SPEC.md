@@ -116,7 +116,7 @@ Each named merchant (e.g. "DataVault Pro") should behave consistently across all
 
 ## Dataset Pricing
 
-One chunk per pairing (12 chunks total), ~13 trajectories each. Price per chunk:
+One chunk per pairing (12 chunks total), ~30 trajectories each. Price per chunk:
 
 - Base: $0.05
 - If adversarial ratio ≥ 0.60: $0.10
@@ -239,7 +239,7 @@ X402_PAYMENT_RECIPIENT
 
 **`worker/wrangler.toml`** vars:
 ```
-HONCHO_APP_ID = "provenance"
+HONCHO_WORKSPACE_ID = "provenance"
 ```
 
 **Deploying the Worker.** `proc-bucket` and the Worker live in Cloudflare account `1ebf3cd9475ef1c13e035d606710ca87`, which is **not** the account `wrangler login` defaults to. `wrangler.toml` pins `account_id` to the correct account so `wrangler deploy`/`wrangler dev` target it automatically — but the `CLOUDFLARE_API_TOKEN` you authenticate with must have Workers + R2 access on that account. Without it, the R2 binding silently fails to resolve and the Worker can't read the catalog or chunks.

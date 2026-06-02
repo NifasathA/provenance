@@ -21,7 +21,7 @@ remote = true
 directory = "../explorer"
 
 [vars]
-HONCHO_APP_ID = "provenance"
+HONCHO_WORKSPACE_ID = "provenance"
 X402_NETWORK = "base-sepolia"
 X402_FACILITATOR = "https://x402.org/facilitator"
 # Wallet that receives USDC. Public info — safe to commit. Change here + redeploy

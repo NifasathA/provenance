@@ -32,7 +32,7 @@ MERCHANT_SHORT = {
 }
 
 OUTPUT_FILE = config.PIPELINE_DIR / "trajectories_raw.json"
-TRAJECTORIES_PER_PAIRING = 13          # 13 * 12 = 156, gate minimum is 140
+TRAJECTORIES_PER_PAIRING = 30          # 30 * 12 = 360, gate minimum is 140
 MIXED_MODALITY_RATIO = 0.40            # gate minimum is 20%
 SEED = 42
 

@@ -1,7 +1,7 @@
 """Group trajectories into per-pairing chunks and upload to R2.
 
 Spec contract (see SPEC.md, verify_phase3.py):
-  - 12 chunks, one per pairing (buyer x merchant). ~13 trajectories each.
+  - 12 chunks, one per pairing (buyer x merchant). ~30 trajectories each.
   - Rule-based per-chunk pricing in USD:
       base                                $0.05
       adversarial ratio >= 0.60           $0.10

@@ -1,5 +1,5 @@
 """Generate ONE trajectory end-to-end to validate the pipeline before the
-full 156-trajectory run. Confirms JSON parsing, schema compliance, and
+full 360-trajectory run. Confirms JSON parsing, schema compliance, and
 prompt format work as intended.
 
 Run:  .venv/bin/python -m phase2_smoke_test
